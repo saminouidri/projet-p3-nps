@@ -29,8 +29,6 @@ class LogsCard extends StatelessWidget {
                     Text('Start Time', style: TextStyle(fontSize: 12)),
                     Spacer(flex: 1),
                     Text('Stop Time', style: TextStyle(fontSize: 12)),
-                    Spacer(flex: 1),
-                    Text('Average Delta', style: TextStyle(fontSize: 12)),
                     //texte de la colonne
                     //Text('Percentage Completed', TODO
                     //    style: TextStyle(fontSize: 12)),
@@ -47,10 +45,6 @@ class LogsCard extends StatelessWidget {
                         (documentData['dStartDT'] as Timestamp).toDate();
                     DateTime dEndDT =
                         (documentData['dEndDT'] as Timestamp).toDate();
-                    double rAverageDelta =
-                        documentData['rAverageDelta'].toDouble();
-                    double rPerCompleted =
-                        documentData['rPerCompleted'].toDouble();
 
                     String formattedStartDT =
                         DateFormat('MM.dd HH:mm').format(dStartDT);
@@ -63,8 +57,6 @@ class LogsCard extends StatelessWidget {
                         Text(formattedStartDT),
                         Spacer(flex: 1),
                         Text(formattedEndDT),
-                        Spacer(flex: 1),
-                        Text('$rAverageDelta'),
                         //texte du body
                         //Text('$rPerCompleted%'), TODO
                       ],

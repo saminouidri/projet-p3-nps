@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:projet_p3/UI/MainPage.dart';
@@ -12,7 +14,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(MaterialApp(home: const MainPage(), theme: darkTheme));
+  runApp(MaterialApp(home: const AuthWrapper(), theme: darkTheme));
 }
 
 final ThemeData darkTheme = ThemeData(
@@ -30,7 +32,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Projet P3',
+      title: 'Clarius Mobilius',
       home: const AuthWrapper(),
       routes: {
         '/home': (context) => const MyHomePage(title: 'Projet P3'),
@@ -60,7 +62,7 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Projet P3'),
+        title: const Text('Clarius Mobilius'),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -117,28 +119,17 @@ class _MyHomePageState extends State<MyHomePage> {
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
+  //sign out function
+  Future<void> _signOut() async {
+    await FirebaseAuth.instance.signOut();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.active) {
-          // Get the user
-          User? user = snapshot.data;
-
-          // If the user is null, they are not logged in
-          if (user == null) {
-            return const LoginPage();
-          } else {
-            // If the user is not null, they are logged in
-            return const MyHomePage(title: 'Projet P3');
-          }
-        }
-        // If the connection to the stream is still loading, show a loading indicator
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
-      },
-    );
+    // Call the sign out function
+    _signOut();
+    // Directly return the LoginPage widget
+    debugPrint('============================User signed out');
+    return const LoginPage();
   }
 }

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:projet_p3/UI/MainPage.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,7 +14,13 @@ class _LoginPageState extends State<LoginPage> {
   late String _email;
   late String _password;
 
+  bool _isLoading = false; // Step 1: Add state variable
+
   Future<void> _login(BuildContext context) async {
+    setState(() {
+      _isLoading = true; // Start loading
+    });
+
     try {
       UserCredential userCredential =
           await FirebaseAuth.instance.signInWithEmailAndPassword(
@@ -21,26 +28,36 @@ class _LoginPageState extends State<LoginPage> {
         password: _password,
       );
       print('User signed in: ${userCredential.user}');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainPage()),
+        );
+      }
     } catch (e) {
-      // error dialog when failing to sign in
-      // ignore: use_build_context_synchronously
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Error Signing In'),
-            content: Text('Error signing in: $e'),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).pop(); //enleve la boite de dialogue
-                },
-              ),
-            ],
-          );
-        },
-      );
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error Signing In'),
+              content: Text('Error signing in: $e'),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Removes the dialog
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false; // Stop loading
+      });
     }
   }
 
@@ -98,6 +115,12 @@ class _LoginPageState extends State<LoginPage> {
                   child: const Text('Login'),
                 ),
               ),
+              if (_isLoading) // Conditionally display the "Logging in..." text
+                const Padding(
+                  padding: EdgeInsets.only(
+                      top: 20), // Provide some spacing from the button
+                  child: Center(child: Text('Logging in...')),
+                ),
             ],
           ),
         ),
