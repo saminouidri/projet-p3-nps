@@ -1,0 +1,99 @@
+@startuml
+
+class MyApp {
+  - title: String
+}
+
+class MyHomePage {
+  - title: String
+}
+
+class _MyHomePageState {
+  - user: User?
+  - username: String
+  - currentPageIndex: int
+}
+
+class AuthWrapper {
+}
+
+class MainPage {
+  - currentPageIndex: int
+  - isRoundActive: bool
+  - startTimestamp: DateTime?
+  - stopTimestamp: DateTime?
+}
+
+class _MainPageState {
+  - saveRoundData(startDate: DateTime, endDate: DateTime): Future<void>
+  - toggleRound(): void
+}
+
+class CustomNavigationBar {
+  - selectedIndex: int
+}
+
+class _CustomNavigationBarState {
+  - _selectedIndex: int
+  - _onItemTapped(index: int): void
+}
+
+class LoginPage {
+}
+
+class _LoginPageState {
+  - _formKey: GlobalKey<FormState>
+  - _email: String
+  - _password: String
+  - _login(context: BuildContext): Future<void>
+}
+
+class ScanPage {
+}
+
+class _ScanPageState {
+  - qrKey: GlobalKey
+  - controller: QRViewController?
+  - qrText: String
+  - _valueController: TextEditingController
+  - currentPageIndex: int
+}
+
+class LogsCard {
+  - documents: List<DocumentSnapshot>
+}
+
+class LogGraph {
+  - documents: List<DocumentSnapshot>
+}
+
+class MeasurementsCard {
+  - postID: int
+  - paramID: int
+  - fetchLastThreeMeasurements(): Future<List<Map<String, dynamic>>>
+}
+
+MyApp --> MyHomePage
+MyApp --> AuthWrapper
+MyHomePage --> LogsCard
+MyHomePage --> LogGraph
+MyHomePage --> _MyHomePageState
+MyHomePage --> MainPage
+
+MainPage --> CustomNavigationBar
+MainPage --> _MainPageState
+MainPage --> ScanPage
+
+_CustomNavigationBarState --> MyHomePage
+_CustomNavigationBarState --> ScanPage
+
+_LoginPageState --> MyApp : Uses
+
+_ScanPageState --> MeasurementsCard
+_ScanPageState --> MyApp : Uses
+
+MeasurementsCard ..> FirebaseFirestore : Uses
+LogsCard ..> FirebaseFirestore : Uses
+LogGraph ..> FirebaseFirestore : Uses
+
+@enduml

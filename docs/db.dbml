@@ -1,0 +1,87 @@
+Table tblAuthentication {
+    iUserId INTEGER [pk, increment]
+    sEmail TEXT [unique, not null]
+    sPasswordHash TEXT [not null]
+    sDisplayName TEXT
+    sPhotoUrl TEXT
+    sPhoneNumber TEXT [unique]
+    bEmailVerified BOOLEAN [default: 0]
+    dCreatedAt TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+    dLastLogin TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+}
+
+Table tblLogs {
+    iLogId INTEGER [pk, increment]
+    dDate DATE [not null]
+    tTime TIME [not null]
+    rAverageDelta REAL [not null]
+    rPerCompleted REAL [not null]
+}
+
+Table tblParameter {
+    iParamId INTEGER [pk]
+    sName TEXT [not null, unique]
+    sDesc TEXT
+    sUnit TEXT
+    rRef REAL
+    rMin REAL
+    rMax REAL
+    rDef REAL
+    dCreated DATE
+    dModified DATE
+    sLastUser TEXT
+    sUniqueRep TEXT
+}
+
+Table tblPost {
+    iPostId INTEGER [pk]
+    sName TEXT [not null, unique]
+    sDesc TEXT
+    dCreated DATE
+    dModified DATE
+    sLastUser TEXT
+}
+
+Table tblVariable {
+    iVarId INTEGER [pk]
+    iParamId INTEGER 
+    iPostId INTEGER 
+    sSourceName TEXT
+    dCreated DATE
+    dModified DATE
+    sLastUser TEXT
+    sUniqueRep TEXT
+    Unique tblVariable(iParamId, iPostId)
+}
+
+Table tblDataInbox {
+    dTimestamp DATE [not null]
+    iSiteId INTEGER [not null]
+    iObjectId INTEGER [not null]
+    iUserId INTEGER [not null]
+    rValue REAL
+    sValue TEXT [default: null]
+    jsValue TEXT [default: null]
+    uValue INTEGER [default: null]
+    iValue INTEGER [default: null]
+    Unique tblDataInbox(dTimestamp, iSiteId, iObjectId)
+}
+
+Table tblSite {
+    iSiteId INTEGER [pk]
+    sLanguage TEXT
+    sFederalId TEXT
+    jsContactDetails TEXT
+    sStepName TEXT
+    sSiteName TEXT
+    jsBasicInfo TEXT
+    jsSpecificCtes TEXT
+    jsDocList TEXT
+    jsMailAddressList TEXT
+    jsNotes TEXT
+    sMemoNote TEXT
+}
+
+Ref: tblVariable.iParamId > tblParameter.iParamId [delete: cascade]
+Ref: tblVariable.iPostId > tblPost.iPostId [delete: cascade]
+Ref: tblDataInbox.iSiteId > tblSite.iSiteId
