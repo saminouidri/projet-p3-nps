@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:projet_p3/GDriveAPI/DriveFilePicker.dart';
 import 'package:projet_p3/UI/MainPage.dart';
 import 'package:projet_p3/widgets/logs_card.dart';
 import 'package:projet_p3/widgets/logs_graph.dart';
@@ -14,7 +15,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(MaterialApp(home: const AuthWrapper(), theme: darkTheme));
+  runApp(MaterialApp(home: DriveFilePicker(), theme: darkTheme));
 }
 
 final ThemeData darkTheme = ThemeData(
