@@ -14,7 +14,7 @@ class _MainPageState extends State<MainPage> {
   int currentPageIndex = 0;
 
   final List<Widget> _pages = [
-    const MyHomePage(title: 'Projet P3'), // Index 0
+    const MyHomePage(title: 'Clarius Mobilius'), // Index 0
     const ScanPage(), // Index 1
   ];
 

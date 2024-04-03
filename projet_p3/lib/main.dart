@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
       title: 'Clarius Mobilius',
       home: const AuthWrapper(),
       routes: {
-        '/home': (context) => const MyHomePage(title: 'Projet P3'),
+        '/home': (context) => const MyHomePage(title: 'Clarius Mobilius'),
         '/scan': (context) => const ScanPage(),
         '/login': (context) => const LoginPage(),
       },

@@ -4,21 +4,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class MeasurementsCard extends StatelessWidget {
-  final int postID;
-  final int paramID;
+  final int iSiteID;
+  final int iVarID;
 
   const MeasurementsCard({
     Key? key,
-    required this.postID,
-    required this.paramID,
+    required this.iSiteID,
+    required this.iVarID,
   }) : super(key: key);
 
   Future<List<Map<String, dynamic>>> fetchLastThreeMeasurements() async {
     var querySnapshot = await FirebaseFirestore.instance
         .collection('TBL_DATAINBOX')
-        .where('iPostID', isEqualTo: postID)
-        .where('iParamID', isEqualTo: paramID)
-        .orderBy('dTimeStamp', descending: true)
+        .where('iVarID', isEqualTo: iVarID)
+        .where('iSiteID', isEqualTo: iSiteID)
+        .orderBy('dUserTime', descending: true)
         .limit(3)
         .get();
 
@@ -58,7 +58,7 @@ class MeasurementsCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: measurements.map((measurement) {
                 DateTime date =
-                    (measurement['dTimeStamp'] as Timestamp).toDate(); //date
+                    (measurement['dUserTime'] as Timestamp).toDate(); //date
                 double value = measurement['rValue'];
                 return Text(
                     'Measurement: $value, Date: ${DateFormat.yMd().format(date)}');
