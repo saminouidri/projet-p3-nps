@@ -88,6 +88,7 @@ class _MainPageState extends State<MainPage> {
           ),
         ],
       ),
+      /*
       floatingActionButton: currentPageIndex == 0
           ? FloatingActionButton(
               onPressed: toggleRound,
@@ -95,7 +96,7 @@ class _MainPageState extends State<MainPage> {
               backgroundColor: isRoundActive ? Colors.red : Colors.green,
               child: Icon(isRoundActive ? Icons.stop : Icons.play_arrow),
             )
-          : null, // Only show FAB on Home page (index 0)
+            */
     );
   }
 }
