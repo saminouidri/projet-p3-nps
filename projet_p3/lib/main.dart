@@ -25,7 +25,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  runApp(MaterialApp(home: MyHomePage(title: 'Clarius Mobilius')));
+  runApp(MaterialApp(home: MainPage(), theme: darkTheme));
 }
 
 final ThemeData darkTheme = ThemeData(
@@ -44,9 +44,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Clarius Mobilius',
-      home: const MyHomePage(
-        title: 'Clarius Mobilius',
-      ),
+      home: const MainPage(),
       routes: {
         '/home': (context) => const MyHomePage(title: 'Clarius Mobilius'),
         '/scan': (context) => const ScanPage(),
@@ -67,6 +65,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   late drive.DriveApi driveApi;
+  String _email = '';
 
   @override
   void initState() {
@@ -75,6 +74,14 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         driveApi = api!;
       });
+    });
+    _loadEmail();
+  }
+
+  _loadEmail() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _email = prefs.getString('userEmail') ?? 'Guest';
     });
   }
 
@@ -189,23 +196,41 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Welcome',
+                const Text('Bienvenue',
                     style: TextStyle(fontSize: 18, color: Colors.grey)),
-                Text(username,
+                Text((_email.isEmpty ? 'Guest' : _email),
                     style: const TextStyle(
                         fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 40),
+                const Text('Paramètres',
+                    style: TextStyle(fontSize: 18, color: Colors.grey)),
                 const SizedBox(height: 20),
-                const Text('Load Databases'),
+                const Text('Charger les bases de données'),
                 ElevatedButton(
                   onPressed: loadDatabases,
-                  child: const Text('Pick Files and Upload'),
+                  child: const Text('Sélectionner les fichiers'),
                 ),
+                const SizedBox(height: 10),
+                //italic info text
+                const Text(
+                    'Copie local des bases de données et televersement sur GDrive pour la 1ère mise en route.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.blue)),
                 const SizedBox(height: 20),
-                const Text('Synchronize Databases'),
+                const Text('Synchoniser les bases de données'),
                 ElevatedButton(
                   onPressed: synchronizeDatabases,
-                  child: const Text('Sync Files with GDrive'),
+                  child: const Text('Synchoniser'),
                 ),
+                const SizedBox(height: 10),
+                const Text(
+                    'Synchronisation entre les données locales et GDrive.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        color: Colors.blue)),
               ],
             ),
           ),
