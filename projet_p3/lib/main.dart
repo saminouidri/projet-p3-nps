@@ -109,8 +109,14 @@ class _MyHomePageState extends State<MyHomePage> {
       await file.copy(newPath);
 
       print("File copied to $newPath");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('File copied to $newPath')),
+      );
     } catch (e) {
       print("Error copying file to DB_mobilius folder: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error copying file: $e')),
+      );
     }
   }
 
@@ -169,9 +175,17 @@ class _MyHomePageState extends State<MyHomePage> {
                 .update(fileMetadata, fileId, uploadMedia: media);
 
             print("File has been successfully updated.");
+            // ignore: use_build_context_synchronously
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('File has been successfully updated.')),
+            );
           } catch (e) {
             // Handle errors, e.g., print them or display a message
             print("Error updating file: $e");
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error updating file.')),
+            );
           }
         }
       }
