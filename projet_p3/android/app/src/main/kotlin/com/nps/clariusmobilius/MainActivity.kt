@@ -1,4 +1,4 @@
-package com.example.projet_p3
+package com.nps.clariusmobilius
 
 import io.flutter.embedding.android.FlutterActivity
 
