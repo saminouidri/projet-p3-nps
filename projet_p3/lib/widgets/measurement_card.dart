@@ -1,7 +1,8 @@
-// measurements_card.dart
+import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart';
 
 class MeasurementsCard extends StatelessWidget {
   final int iSiteID;
@@ -14,17 +15,23 @@ class MeasurementsCard extends StatelessWidget {
   }) : super(key: key);
 
   Future<List<Map<String, dynamic>>> fetchLastThreeMeasurements() async {
-    var querySnapshot = await FirebaseFirestore.instance
-        .collection('TBL_DATAINBOX')
-        .where('iVarID', isEqualTo: iVarID)
-        .where('iSiteID', isEqualTo: iSiteID)
-        .orderBy('dUserTime', descending: true)
-        .limit(3)
-        .get();
+    final documentsDirPath =
+        await ExternalPath.getExternalStoragePublicDirectory(
+            ExternalPath.DIRECTORY_DOCUMENTS);
+    final dbMobiliusDirPath = "$documentsDirPath/DB_mobilius/MainDB.cdb";
+    final Database db = await openDatabase(dbMobiliusDirPath);
 
-    //trie les données par date
+    // Assuming 'dUserTime' is stored as INTEGER (Unix timestamp) in the SQLite database
+    List<Map<String, dynamic>> measurements = await db.query(
+      'TBL_DATAINBOX',
+      where: 'IOBJECTID = ? AND ISITEID = ?',
+      whereArgs: [iVarID, iSiteID],
+      orderBy: 'UUSERTIME DESC',
+      limit: 3,
+    );
 
-    return querySnapshot.docs.map((doc) => doc.data()).toList();
+    await db.close();
+    return measurements;
   }
 
   @override
@@ -57,9 +64,10 @@ class MeasurementsCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: measurements.map((measurement) {
-                DateTime date =
-                    (measurement['dUserTime'] as Timestamp).toDate(); //date
-                double value = measurement['rValue'];
+                // Convert UNIX timestamp to DateTime
+                DateTime date = DateTime.fromMillisecondsSinceEpoch(
+                    measurement['UUSERTIME'] * 1000);
+                double value = measurement['RVALUE'];
                 return Text(
                     'Measurement: $value, Date: ${DateFormat.yMd().format(date)}');
               }).toList(),

@@ -11,8 +11,6 @@ import 'package:projet_p3/widgets/logs_graph.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'UI/scan.dart';
 import 'UI/login.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
@@ -23,7 +21,6 @@ import 'package:external_path/external_path.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
   runApp(MaterialApp(home: MainPage(), theme: darkTheme));
 }
@@ -64,16 +61,24 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late drive.DriveApi driveApi;
+  drive.DriveApi? driveApi; // Make driveApi nullable
   String _email = '';
 
   @override
   void initState() {
     super.initState();
     signInWithGoogle().then((api) {
-      setState(() {
-        driveApi = api!;
-      });
+      if (api != null) {
+        setState(() {
+          driveApi = api;
+        });
+      } else {
+        // Handle failed sign-in or prompt user for action
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Errreur de connexion. Veuillez vous connecter.')),
+        );
+      }
     });
     _loadEmail();
   }
@@ -136,16 +141,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
         // Save file ID to sharedPreferences
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString(fileName, fileOnDrive.id!);
+        await prefs.setString(fileName, fileOnDrive!.id!);
       }
     }
   }
 
-  Future<drive.File> uploadFileToDrive(String fileName, File file) async {
+  Future<drive.File?> uploadFileToDrive(String fileName, File file) async {
     var media = drive.Media(file.openRead(), file.lengthSync());
     var driveFile = drive.File()..name = fileName;
     // driveFile.parents = ["DB_mobilius"];
-    return await driveApi.files.create(driveFile, uploadMedia: media);
+    return await driveApi?.files.create(driveFile, uploadMedia: media);
   }
 
   Future<void> synchronizeDatabases() async {
@@ -171,7 +176,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
           try {
             // Call the update method with the empty metadata and the media
-            await driveApi.files
+            await driveApi?.files
                 .update(fileMetadata, fileId, uploadMedia: media);
 
             print("File has been successfully updated.");
@@ -194,9 +199,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
-    String username = user != null ? user.email ?? 'Anonymous User' : 'Guest';
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -251,23 +253,5 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
     );
-  }
-}
-
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  //sign out function
-  Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Call the sign out function
-    _signOut();
-    // Directly return the LoginPage widget
-    debugPrint('============================User signed out');
-    return const LoginPage();
   }
 }

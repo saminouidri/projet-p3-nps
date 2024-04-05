@@ -1,11 +1,12 @@
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:projet_p3/main.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:vibration/vibration.dart';
 import '../widgets/measurement_card.dart';
 
@@ -113,17 +114,41 @@ class _ScanPageState extends State<ScanPage> {
     );
   }
 
-  //Recupère les contraintes du paramètre
+  // Retrieves the variable constraints from the ConfigDB.cdb SQLite database
   Future<Map<String, dynamic>?> fetchVariableConstraints(int iVarID) async {
-    try {
-      var snapshot = await FirebaseFirestore.instance
-          .collection('TBL_VARIABLE')
-          .where('iVarID', isEqualTo: iVarID)
-          .limit(1)
-          .get();
+    // Get the path to the external storage Documents directory
+    final documentsDirPath =
+        await ExternalPath.getExternalStoragePublicDirectory(
+            ExternalPath.DIRECTORY_DOCUMENTS);
+    final dbMobiliusDirPath = "$documentsDirPath/DB_mobilius/ConfigDB.cdb";
 
-      if (snapshot.docs.isNotEmpty) {
-        return snapshot.docs.first.data();
+    try {
+      // Open the database
+      final Database db = await openDatabase(dbMobiliusDirPath);
+
+      // Query the database for the variable with the matching iVarID
+      final List<Map<String, dynamic>> results = await db.query(
+        'TBL_VARIABLE',
+        where: 'IVARID = ?',
+        whereArgs: [iVarID],
+      );
+
+      // Ensure the database is closed properly
+      await db.close();
+
+      if (results.isNotEmpty) {
+        // Check if bIsCompteur is true
+        final isCompteur = results.first['BISCOMPTEUR'] == 1;
+        if (isCompteur) {
+          // If bIsCompteur is true, return NaN values for constraints
+          return {
+            'rMin': double.nan,
+            'rMax': double.nan,
+          };
+        } else {
+          // If bIsCompteur is false, return the found record
+          return results.first;
+        }
       } else {
         throw Exception('Variable not found');
       }
@@ -133,58 +158,85 @@ class _ScanPageState extends State<ScanPage> {
     }
   }
 
-  //Soumet les données dans la table TBL_DATAINBOX
+  // Submits data to the TBL_DATAINBOX table
   void _submitData() async {
     try {
-      // Extract parameter ID and measurement value
+      // Extract site and variable IDs
       List<String> dataParts = qrText.split(';');
-      int iSiteID;
-      int iVarID;
+      int iSiteID = int.parse(dataParts[1]);
+      int iVarID = int.parse(dataParts[2]);
+      double rValue = double.tryParse(_valueController.text) ?? 0.0;
 
-      try {
-        iSiteID = int.parse(dataParts[1]);
-        iVarID = int.parse(dataParts[2]);
-      } catch (e) {
+      // Verify the data before submission
+      if (!(await verifyData(iSiteID, iVarID))) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Invalid site or variable ID')),
+          const SnackBar(content: Text('Invalid data, please scan again')),
         );
         return;
       }
-      double rValue = double.tryParse(_valueController.text) ?? 0.0;
 
-      // Fetch parameter constraints
+      // Fetch variable constraints
       var varConstraints = await fetchVariableConstraints(iVarID);
-      if (varConstraints != null) {
-        double rMin = (varConstraints['rMin'] as num?)?.toDouble() ??
-            double.negativeInfinity;
-        double rMax =
-            (varConstraints['rMax'] as num?)?.toDouble() ?? double.infinity;
+      double rMin = double.negativeInfinity;
+      double rMax = double.infinity;
 
-        // Check if the measurement is within constraints
-        if (rValue < rMin || rValue > rMax) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Measurement out of bounds')),
-          );
-          return;
-        }
+      // varConstraints is a map that might contain null values for 'rMin' and 'rMax'
+      if (varConstraints != null) {
+        // Check for null before checking for isNaN
+        rMin = varConstraints['rMin'] != null && varConstraints['rMin'].isNaN
+            ? double.negativeInfinity
+            : varConstraints['rMin'] ??
+                double
+                    .negativeInfinity; // Fallback to negative infinity if null
+        rMax = varConstraints['rMax'] != null && varConstraints['rMax'].isNaN
+            ? double.infinity
+            : varConstraints['rMax'] ??
+                double.infinity; // Fallback to infinity if null
       }
 
-      // Proceed with data submission
-      await FirebaseFirestore.instance.collection('TBL_DATAINBOX').add({
-        'dTimeStamp': Timestamp.now(),
-        'dUserTime': Timestamp.fromDate(_selectedDate),
-        'iVarID': iVarID,
-        'iSiteID': iSiteID,
-        'iUserID': 0,
-        'jsValue': '',
-        'rValue': rValue,
-        'sValue': '',
-        'bStatus': false,
-      });
+      // Check if the measurement is within constraints
+      if (rValue < rMin || rValue > rMax) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Measurement out of bounds')),
+        );
+        setState(() {
+          qrText = '';
+          _valueController.clear();
+        });
+        return;
+      }
+
+      // Prepare database path and open the database
+      // Get the path to the external storage Documents directory
+      final documentsDirPath =
+          await ExternalPath.getExternalStoragePublicDirectory(
+              ExternalPath.DIRECTORY_DOCUMENTS);
+      final dbMobiliusDirPath = "$documentsDirPath/DB_mobilius/MainDB.cdb";
+      final Database db = await openDatabase(dbMobiliusDirPath);
+
+      // Insert data into TBL_DATAINBOX
+      await db.insert(
+        'TBL_DATAINBOX',
+        {
+          'UTIMESTAMP': DateTime.now().millisecondsSinceEpoch,
+          'UUSERTIME': _selectedDate.millisecondsSinceEpoch,
+          'ISITEID': iSiteID,
+          'IOBJECTID': iVarID, // iVarID <=> iOBJECTID
+          'IUSERID': 0, // temp
+          'RVALUE': rValue,
+          'SVALUE': '', // comment
+          'JSVALUE': '',
+          'BSTATUS': 0,
+          'SINSERTDATE': DateFormat('yyyy-MM-dd HH:mm:ss')
+              .format(DateTime.now()), // Format date as text
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data submitted successfully')),
       );
+      await db.close();
       setState(() {
         qrText = '';
         _valueController.clear();
@@ -198,23 +250,34 @@ class _ScanPageState extends State<ScanPage> {
 
   Future<bool> verifyData(int iSiteID, int iVarID) async {
     try {
-      // Check if the post exists in TBL_POST
-      var postSnapshot = await FirebaseFirestore.instance
-          .collection('TBL_SITE')
-          .where('iSiteID', isEqualTo: iSiteID)
-          .limit(1)
-          .get();
-      bool postExists = postSnapshot.docs.isNotEmpty;
+      final documentsDirPath =
+          await ExternalPath.getExternalStoragePublicDirectory(
+              ExternalPath.DIRECTORY_DOCUMENTS);
+      final dbMobiliusDirPath = "$documentsDirPath/DB_mobilius/ConfigDB.cdb";
+      final Database db = await openDatabase(dbMobiliusDirPath);
 
-      // Check if the variable exists in TBL_VARIABLE
-      var parameterSnapshot = await FirebaseFirestore.instance
-          .collection('TBL_VARIABLE')
-          .where('iVarID', isEqualTo: iVarID)
-          .limit(1)
-          .get();
-      bool varExists = parameterSnapshot.docs.isNotEmpty;
+      // Query TBL_SITE to check for iSiteID existence
+      List<Map> siteResults = await db.query(
+        'TBL_SITE',
+        where: 'ISITEID = ?',
+        whereArgs: [iSiteID],
+        limit: 1,
+      );
+      bool siteExists = siteResults.isNotEmpty;
 
-      return postExists && varExists;
+      // Query TBL_VARIABLE to check for iVarID existence
+      List<Map> varResults = await db.query(
+        'TBL_VARIABLE',
+        where: 'IVARID = ?',
+        whereArgs: [iVarID],
+        limit: 1,
+      );
+      bool varExists = varResults.isNotEmpty;
+
+      // Close the database
+      await db.close();
+
+      return siteExists && varExists;
     } catch (e) {
       print('Error verifying data: $e');
       return false;
@@ -224,7 +287,7 @@ class _ScanPageState extends State<ScanPage> {
   Widget _buildScannedDataCard() {
     // Split the qrText into its components
     List<String> dataParts = qrText.split(';');
-    if (dataParts.length != 4 || dataParts[0] != 'ClariusDP') {
+    if (dataParts.length != 3 || dataParts[0] != 'ClariusDP') {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16.0),
