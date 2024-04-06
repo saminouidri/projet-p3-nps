@@ -1,7 +1,8 @@
-// measurements_card.dart
+import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:intl/intl.dart';
+import 'package:path/path.dart';
 
 class MeasurementsCard extends StatelessWidget {
   final int iSiteID;
@@ -14,17 +15,23 @@ class MeasurementsCard extends StatelessWidget {
   }) : super(key: key);
 
   Future<List<Map<String, dynamic>>> fetchLastThreeMeasurements() async {
-    var querySnapshot = await FirebaseFirestore.instance
-        .collection('TBL_DATAINBOX')
-        .where('iVarID', isEqualTo: iVarID)
-        .where('iSiteID', isEqualTo: iSiteID)
-        .orderBy('dUserTime', descending: true)
-        .limit(3)
-        .get();
+    final documentsDirPath =
+        await ExternalPath.getExternalStoragePublicDirectory(
+            ExternalPath.DIRECTORY_DOCUMENTS);
+    final dbMobiliusDirPath = "$documentsDirPath/DB_mobilius/MainDB.cdb";
+    final Database db = await openDatabase(dbMobiliusDirPath);
 
-    //trie les données par date
+    // Assuming 'dUserTime' is stored as INTEGER (Unix timestamp) in the SQLite database
+    List<Map<String, dynamic>> measurements = await db.query(
+      'TBL_DATAINBOX',
+      where: 'IOBJECTID = ? AND ISITEID = ?',
+      whereArgs: [iVarID, iSiteID],
+      orderBy: 'UUSERTIME DESC',
+      limit: 3,
+    );
 
-    return querySnapshot.docs.map((doc) => doc.data()).toList();
+    await db.close();
+    return measurements;
   }
 
   @override
@@ -57,11 +64,25 @@ class MeasurementsCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: measurements.map((measurement) {
-                DateTime date =
-                    (measurement['dUserTime'] as Timestamp).toDate(); //date
-                double value = measurement['rValue'];
-                return Text(
-                    'Measurement: $value, Date: ${DateFormat.yMd().format(date)}');
+                // Assume UUSERTIME is in seconds; adjust if it's already in milliseconds
+                int timestamp = measurement['UUSERTIME'];
+                // Create a DateTime object only if the timestamp is within a reasonable range
+                DateTime? date;
+                if (timestamp > 0 &&
+                    timestamp <
+                        DateTime.now()
+                                .add(Duration(days: 365 * 20))
+                                .millisecondsSinceEpoch /
+                            1000) {
+                  date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+                }
+
+                double value = measurement['RVALUE'];
+                // Use a default date string if the date is null
+                String dateString = date != null
+                    ? DateFormat.yMd().format(date)
+                    : "Invalid Date";
+                return Text('Measurement: $value, Date: $dateString');
               }).toList(),
             ),
           ),

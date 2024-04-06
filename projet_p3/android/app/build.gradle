@@ -5,6 +5,10 @@ plugins {
     id 'com.google.gms.google-services'
 }
 
+android {
+  compileSdkVersion 34
+}
+
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
@@ -24,7 +28,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.example.projet_p3"
+    namespace "com.nps.clariusmobilius"
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
@@ -43,10 +47,10 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.example.projet_p3"
+        applicationId "com.nps.clariusmobilius"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdkVersion 20
+        minSdkVersion 34
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

@@ -22,48 +22,6 @@ class _MainPageState extends State<MainPage> {
   DateTime? startTimestamp;
   DateTime? stopTimestamp;
 
-  Future<void> saveRoundData(DateTime startDate, DateTime endDate) async {
-    try {
-      // Recherche des documents correspondant à la période
-      var querySnapshot = await FirebaseFirestore.instance
-          .collection('TBL_DATAINBOX')
-          .where('dTimeStamp',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-          .where('dTimeStamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-          .get();
-
-      // Insertion du document dans la collection TBL_LOGS
-      await FirebaseFirestore.instance.collection('TBL_LOGS').add({
-        'dStartDT': Timestamp.fromDate(startDate),
-        'dEndDT': Timestamp.fromDate(endDate),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Round saved successfully!'),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to save round data: $e'),
-        ),
-      );
-    }
-  }
-
-  void toggleRound() {
-    setState(() {
-      if (isRoundActive) {
-        stopTimestamp = DateTime.now();
-        saveRoundData(startTimestamp!, stopTimestamp!);
-      } else {
-        startTimestamp = DateTime.now();
-      }
-      isRoundActive = !isRoundActive;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,14 +46,6 @@ class _MainPageState extends State<MainPage> {
           ),
         ],
       ),
-      floatingActionButton: currentPageIndex == 0
-          ? FloatingActionButton(
-              onPressed: toggleRound,
-              tooltip: isRoundActive ? 'Stop Round' : 'Start Round',
-              backgroundColor: isRoundActive ? Colors.red : Colors.green,
-              child: Icon(isRoundActive ? Icons.stop : Icons.play_arrow),
-            )
-          : null, // Only show FAB on Home page (index 0)
     );
   }
 }

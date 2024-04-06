@@ -1,11 +1,13 @@
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:projet_p3/UI/scanUtils.dart';
 import 'package:projet_p3/main.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:vibration/vibration.dart';
 import '../widgets/measurement_card.dart';
 
@@ -82,7 +84,26 @@ class _ScanPageState extends State<ScanPage> {
             Container(
               alignment: Alignment.centerLeft,
               height: 240, // Set the height
-              child: qrText.isNotEmpty ? _buildScannedDataCard() : Container(),
+              child: qrText.isNotEmpty
+                  ? FutureBuilder<Widget>(
+                      future: _buildScannedDataCard(),
+                      builder: (BuildContext context,
+                          AsyncSnapshot<Widget> snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          // Return a loader widget or an empty container while waiting
+                          return Center(child: CircularProgressIndicator());
+                        } else if (snapshot.hasError) {
+                          // Handle any errors
+                          return Text('Error: ${snapshot.error}');
+                        } else {
+                          // Return the fully built widget
+                          return snapshot.data ??
+                              Container(); // Fallback to an empty container if snapshot.data is null
+                        }
+                      },
+                    )
+                  : Container(), // Fallback widget when qrText.isEmpty is true
             ),
             if (qrText.isNotEmpty)
               Padding(
@@ -94,7 +115,7 @@ class _ScanPageState extends State<ScanPage> {
                       child: TextField(
                         controller: _valueController,
                         decoration: const InputDecoration(
-                          labelText: 'Value',
+                          labelText: 'Valeur...',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -102,7 +123,7 @@ class _ScanPageState extends State<ScanPage> {
                     const SizedBox(width: 10),
                     ElevatedButton(
                       onPressed: _submitData,
-                      child: const Text('Validate'),
+                      child: const Text('Valider'),
                     ),
                   ],
                 ),
@@ -113,160 +134,149 @@ class _ScanPageState extends State<ScanPage> {
     );
   }
 
-  //Recupère les contraintes du paramètre
-  Future<Map<String, dynamic>?> fetchVariableConstraints(int iVarID) async {
-    try {
-      var snapshot = await FirebaseFirestore.instance
-          .collection('TBL_VARIABLE')
-          .where('iVarID', isEqualTo: iVarID)
-          .limit(1)
-          .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        return snapshot.docs.first.data();
-      } else {
-        throw Exception('Variable not found');
-      }
-    } catch (e) {
-      print('Error fetching variable constraints: $e');
-      return null; // Error occurred
-    }
-  }
-
-  //Soumet les données dans la table TBL_DATAINBOX
+  // Submits data to the TBL_DATAINBOX table
   void _submitData() async {
     try {
-      // Extract parameter ID and measurement value
+      // Extract site and variable IDs
       List<String> dataParts = qrText.split(';');
-      int iSiteID;
-      int iVarID;
+      int iSiteID = int.parse(dataParts[1]);
+      int iVarID = int.parse(dataParts[2]);
+      double rValue = double.tryParse(_valueController.text) ?? 0.0;
 
-      try {
-        iSiteID = int.parse(dataParts[1]);
-        iVarID = int.parse(dataParts[2]);
-      } catch (e) {
+      // Verify the data before submission
+      if (!(await verifyData(iSiteID, iVarID))) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Invalid site or variable ID')),
+          const SnackBar(
+              content: Text('Erreur : Site et/ou variable inconnu(e)')),
         );
         return;
       }
-      double rValue = double.tryParse(_valueController.text) ?? 0.0;
 
-      // Fetch parameter constraints
+      // Fetch variable constraints
       var varConstraints = await fetchVariableConstraints(iVarID);
-      if (varConstraints != null) {
-        double rMin = (varConstraints['rMin'] as num?)?.toDouble() ??
-            double.negativeInfinity;
-        double rMax =
-            (varConstraints['rMax'] as num?)?.toDouble() ?? double.infinity;
+      double rMin = double.negativeInfinity;
+      double rMax = double.infinity;
 
-        // Check if the measurement is within constraints
-        if (rValue < rMin || rValue > rMax) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Measurement out of bounds')),
-          );
-          return;
-        }
+      // varConstraints is a map that might contain null values for 'rMin' and 'rMax'
+      if (varConstraints != null) {
+        // Check for null before checking for isNaN
+        rMin = varConstraints['rMin'] != null && varConstraints['rMin'].isNaN
+            ? double.negativeInfinity
+            : varConstraints['rMin'] ??
+                double
+                    .negativeInfinity; // Fallback to negative infinity if null
+        rMax = varConstraints['rMax'] != null && varConstraints['rMax'].isNaN
+            ? double.infinity
+            : varConstraints['rMax'] ??
+                double.infinity; // Fallback to infinity if null
       }
 
-      // Proceed with data submission
-      await FirebaseFirestore.instance.collection('TBL_DATAINBOX').add({
-        'dTimeStamp': Timestamp.now(),
-        'dUserTime': Timestamp.fromDate(_selectedDate),
-        'iVarID': iVarID,
-        'iSiteID': iSiteID,
-        'iUserID': 0,
-        'jsValue': '',
-        'rValue': rValue,
-        'sValue': '',
-        'bStatus': false,
-      });
+      // Check if the measurement is within constraints
+      if (rValue < rMin || rValue > rMax) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Mesure hors limites')),
+        );
+        setState(() {
+          qrText = '';
+          _valueController.clear();
+        });
+        return;
+      }
+
+      // Prepare database path and open the database
+      // Get the path to the external storage Documents directory
+      final documentsDirPath =
+          await ExternalPath.getExternalStoragePublicDirectory(
+              ExternalPath.DIRECTORY_DOCUMENTS);
+      final dbMobiliusDirPath = "$documentsDirPath/DB_mobilius/MainDB.cdb";
+      final Database db = await openDatabase(dbMobiliusDirPath);
+
+      // Insert data into TBL_DATAINBOX
+      await db.insert(
+        'TBL_DATAINBOX',
+        {
+          'UTIMESTAMP': DateTime.now().millisecondsSinceEpoch,
+          'UUSERTIME': _selectedDate.millisecondsSinceEpoch,
+          'ISITEID': iSiteID,
+          'IOBJECTID': iVarID, // iVarID <=> iOBJECTID
+          'IUSERID': 0, // temp
+          'RVALUE': rValue,
+          'SVALUE': '', // comment
+          'JSVALUE': '',
+          'BSTATUS': 0,
+          'SINSERTDATE': DateFormat('yyyy-MM-dd HH:mm:ss')
+              .format(DateTime.now()), // Format date as text
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data submitted successfully')),
+        const SnackBar(content: Text('Donnée soumise avec succès')),
       );
+      await db.close();
       setState(() {
         qrText = '';
         _valueController.clear();
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error submitting data: $e')),
+        SnackBar(content: Text('Erreur lors de l\'envoi de donnée: $e')),
       );
     }
   }
 
-  Future<bool> verifyData(int iSiteID, int iVarID) async {
-    try {
-      // Check if the post exists in TBL_POST
-      var postSnapshot = await FirebaseFirestore.instance
-          .collection('TBL_SITE')
-          .where('iSiteID', isEqualTo: iSiteID)
-          .limit(1)
-          .get();
-      bool postExists = postSnapshot.docs.isNotEmpty;
-
-      // Check if the variable exists in TBL_VARIABLE
-      var parameterSnapshot = await FirebaseFirestore.instance
-          .collection('TBL_VARIABLE')
-          .where('iVarID', isEqualTo: iVarID)
-          .limit(1)
-          .get();
-      bool varExists = parameterSnapshot.docs.isNotEmpty;
-
-      return postExists && varExists;
-    } catch (e) {
-      print('Error verifying data: $e');
-      return false;
-    }
-  }
-
-  Widget _buildScannedDataCard() {
+  Future<Widget> _buildScannedDataCard() async {
     // Split the qrText into its components
     List<String> dataParts = qrText.split(';');
-    if (dataParts.length != 4 || dataParts[0] != 'ClariusDP') {
+    if ((dataParts.length > 3 || dataParts.length < 2) ||
+        !dataParts[0].contains('Clarius')) {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16.0),
-          child: Text('Invalid QR Code format'),
+          child: Text('Format de code QR invalide.'),
         ),
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Card(
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          margin: const EdgeInsets.all(10),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Site: ${dataParts[1]}'),
-                Text('Variable: ${dataParts[2]}'),
-                //carte d'information
-              ],
+    Map<String, String> names = await fetchSiteAndVariableNames(
+        int.parse(dataParts[1]), int.parse(dataParts[2]));
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            margin: const EdgeInsets.all(10),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Site: ${names['siteName']}'),
+                  Text('Variable: ${names['variableName']}'),
+                  //carte d'information
+                ],
+              ),
             ),
           ),
-        ),
-        MeasurementsCard(
-          iSiteID: int.tryParse(dataParts[1]) ?? 0,
-          iVarID: int.tryParse(dataParts[2]) ?? 0,
-        ),
-        ElevatedButton(
-          onPressed: _presentDatePicker,
-          child: const Text('Choose Date'),
-        ),
-        // Display the selected date
-        Text(
-          'Selected Date: ${DateFormat('MM/dd/yyyy').format(_selectedDate)}',
-        ),
-      ],
+          MeasurementsCard(
+            iSiteID: int.tryParse(dataParts[1]) ?? 0,
+            iVarID: int.tryParse(dataParts[2]) ?? 0,
+          ),
+          ElevatedButton(
+            onPressed: _presentDatePicker,
+            child: const Text('Choisir une date de mesure'),
+          ),
+          // Display the selected date
+          Text(
+            'Date selectionnée: ${DateFormat('MM/dd/yyyy').format(_selectedDate)}',
+          ),
+        ],
+      ),
     );
   }
 
@@ -274,7 +284,7 @@ class _ScanPageState extends State<ScanPage> {
     this.controller = controller;
     controller.scannedDataStream.listen((scanData) {
       setState(() {
-        qrText = scanData.code ?? 'No data';
+        qrText = scanData.code ?? 'Pas de données trouvées.';
         Vibration.vibrate(); //feedback haptique
       });
     });

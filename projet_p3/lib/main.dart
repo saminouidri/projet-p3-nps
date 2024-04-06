@@ -1,20 +1,29 @@
+import 'dart:io';
 import 'dart:math';
-
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:projet_p3/GDriveAPI/AuthenticatedClient.dart';
+import 'package:projet_p3/GDriveAPI/DriveFilePicker.dart';
+import 'package:projet_p3/GDriveAPI/GDriveUtils.dart';
 import 'package:projet_p3/UI/MainPage.dart';
 import 'package:projet_p3/widgets/logs_card.dart';
 import 'package:projet_p3/widgets/logs_graph.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'UI/scan.dart';
 import 'UI/login.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:googleapis_auth/auth_io.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:external_path/external_path.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(MaterialApp(home: const AuthWrapper(), theme: darkTheme));
+
+  runApp(MaterialApp(home: MainPage(), theme: darkTheme));
 }
 
 final ThemeData darkTheme = ThemeData(
@@ -33,7 +42,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Clarius Mobilius',
-      home: const AuthWrapper(),
+      home: const MainPage(),
       routes: {
         '/home': (context) => const MyHomePage(title: 'Clarius Mobilius'),
         '/scan': (context) => const ScanPage(),
@@ -53,83 +62,165 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  drive.DriveApi? driveApi; // Make driveApi nullable
+  String _email = '';
+
+  @override
+  void initState() {
+    super.initState();
+    signInWithGoogle().then((api) {
+      if (api != null) {
+        setState(() {
+          driveApi = api;
+        });
+      } else {
+        // Handle failed sign-in or prompt user for action
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Errreur de connexion. Veuillez vous connecter.')),
+        );
+      }
+    });
+    _loadEmail();
+  }
+
+  _loadEmail() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _email = prefs.getString('userEmail') ?? 'Guest';
+    });
+  }
+
+  Future<void> loadDatabases() async {
+    // Pick two files from local storage
+    FilePickerResult? result =
+        await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result != null && result.files.length == 2) {
+      for (var pickedFile in result.files) {
+        File file = File(pickedFile.path!);
+        String fileName = pickedFile.name;
+
+        // Upload file to Google Drive and save file ID
+        var fileOnDrive = await uploadFileToDrive(fileName, file);
+
+        // ignore: use_build_context_synchronously
+        copyFileToDBMobiliusFolder(file, context);
+
+        // Save file ID to sharedPreferences
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString(fileName, fileOnDrive!.id!);
+      }
+    }
+  }
+
+  Future<drive.File?> uploadFileToDrive(String fileName, File file) async {
+    var media = drive.Media(file.openRead(), file.lengthSync());
+    var driveFile = drive.File()..name = fileName;
+    // driveFile.parents = ["DB_mobilius"];
+    return await driveApi?.files.create(driveFile, uploadMedia: media);
+  }
+
+  Future<void> synchronizeDatabases() async {
+    // Retrieve local files and their IDs from sharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final directory = await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOCUMENTS);
+    final dbDirectory = Directory("$directory/DB_mobilius");
+
+    if (dbDirectory.existsSync()) {
+      List<FileSystemEntity> files = dbDirectory.listSync();
+      for (var fileEntity in files) {
+        File localFile = File(fileEntity.path);
+        String fileName = localFile.uri.pathSegments.last;
+        String? fileId = prefs.getString(fileName);
+
+        if (fileId != null) {
+          // Create an empty File object for the metadata
+          var fileMetadata = drive.File();
+
+          // Prepare the media (file content) to be uploaded
+          var media = drive.Media(localFile.openRead(), localFile.lengthSync());
+
+          try {
+            // Call the update method with the empty metadata and the media
+            await driveApi?.files
+                .update(fileMetadata, fileId, uploadMedia: media);
+
+            print("File has been successfully updated.");
+            // ignore: use_build_context_synchronously
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('File has been successfully updated.')),
+            );
+          } catch (e) {
+            // Handle errors, e.g., print them or display a message
+            print("Error updating file: $e");
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error updating file.')),
+            );
+          }
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
-    String username = user != null ? user.email ?? 'Anonymous User' : 'Guest';
-    int currentPageIndex = 0;
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('Clarius Mobilius'),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('TBL_LOGS')
-            .snapshots(), //recupere les donnees de la table TBL_LOGS
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          // Check for data
-          if (snapshot.hasData) {
-            List<DocumentSnapshot> documents = snapshot.data!.docs;
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Welcome', // The smaller 'Welcome' text
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                      Text(
-                        username,
-                        style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Bienvenue',
+                      style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  Text((_email.isEmpty ? 'Guest' : _email),
+                      style: const TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 40),
+                  const Text('Paramètres',
+                      style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  const SizedBox(height: 20),
+                  const Text('Charger les bases de données'),
+                  ElevatedButton(
+                    onPressed: loadDatabases,
+                    child: const Text('Sélectionner les fichiers'),
                   ),
-                ),
-                LogsCard(documents: documents),
-                /*
-                Expanded(
-                  child: LogGraph(documents: documents),
-                ),
-                */
-              ],
-            );
-          } else {
-            return const Center(child: Text('No Data Available'));
-          }
-        },
+                  const SizedBox(height: 10),
+                  //italic info text
+                  const Text(
+                      'Copie local des bases de données et televersement sur GDrive pour la 1ère mise en route.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.blue)),
+                  const SizedBox(height: 20),
+                  const Text('Synchoniser les bases de données'),
+                  ElevatedButton(
+                    onPressed: synchronizeDatabases,
+                    child: const Text('Synchoniser'),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                      'Synchronisation entre les données locales et GDrive.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.blue)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
-  }
-}
-
-class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({super.key});
-
-  //sign out function
-  Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Call the sign out function
-    _signOut();
-    // Directly return the LoginPage widget
-    debugPrint('============================User signed out');
-    return const LoginPage();
   }
 }
