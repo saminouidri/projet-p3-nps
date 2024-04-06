@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:projet_p3/GDriveAPI/AuthenticatedClient.dart';
 import 'package:projet_p3/GDriveAPI/DriveFilePicker.dart';
+import 'package:projet_p3/GDriveAPI/GDriveUtils.dart';
 import 'package:projet_p3/UI/MainPage.dart';
 import 'package:projet_p3/widgets/logs_card.dart';
 import 'package:projet_p3/widgets/logs_graph.dart';
@@ -90,41 +91,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  // Function to copy file to the "DB_mobilius" folder in the Documents directory
-  Future<void> copyFileToDBMobiliusFolder(File file) async {
-    try {
-      // Get the path to the external storage Documents directory
-      final documentsDirPath =
-          await ExternalPath.getExternalStoragePublicDirectory(
-              ExternalPath.DIRECTORY_DOCUMENTS);
-      final dbMobiliusDirPath = "$documentsDirPath/DB_mobilius";
-
-      // Check if the "DB_mobilius" directory exists, create if not
-      final dbMobiliusDirectory = Directory(dbMobiliusDirPath);
-      if (!await dbMobiliusDirectory.exists()) {
-        await dbMobiliusDirectory.create(recursive: true);
-      }
-
-      // Construct the path to save the file in the "DB_mobilius" directory
-      final fileName = path
-          .basename(file.path); // Extract the file name from the original path
-      final newPath = path.join(dbMobiliusDirPath, fileName);
-
-      // Copy the file to the new path
-      await file.copy(newPath);
-
-      print("File copied to $newPath");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('File copied to $newPath')),
-      );
-    } catch (e) {
-      print("Error copying file to DB_mobilius folder: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error copying file: $e')),
-      );
-    }
-  }
-
   Future<void> loadDatabases() async {
     // Pick two files from local storage
     FilePickerResult? result =
@@ -137,7 +103,8 @@ class _MyHomePageState extends State<MyHomePage> {
         // Upload file to Google Drive and save file ID
         var fileOnDrive = await uploadFileToDrive(fileName, file);
 
-        copyFileToDBMobiliusFolder(file);
+        // ignore: use_build_context_synchronously
+        copyFileToDBMobiliusFolder(file, context);
 
         // Save file ID to sharedPreferences
         SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -204,53 +171,55 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('Clarius Mobilius'),
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Bienvenue',
-                    style: TextStyle(fontSize: 18, color: Colors.grey)),
-                Text((_email.isEmpty ? 'Guest' : _email),
-                    style: const TextStyle(
-                        fontSize: 24, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 40),
-                const Text('Paramètres',
-                    style: TextStyle(fontSize: 18, color: Colors.grey)),
-                const SizedBox(height: 20),
-                const Text('Charger les bases de données'),
-                ElevatedButton(
-                  onPressed: loadDatabases,
-                  child: const Text('Sélectionner les fichiers'),
-                ),
-                const SizedBox(height: 10),
-                //italic info text
-                const Text(
-                    'Copie local des bases de données et televersement sur GDrive pour la 1ère mise en route.',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.blue)),
-                const SizedBox(height: 20),
-                const Text('Synchoniser les bases de données'),
-                ElevatedButton(
-                  onPressed: synchronizeDatabases,
-                  child: const Text('Synchoniser'),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                    'Synchronisation entre les données locales et GDrive.',
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.blue)),
-              ],
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Bienvenue',
+                      style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  Text((_email.isEmpty ? 'Guest' : _email),
+                      style: const TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 40),
+                  const Text('Paramètres',
+                      style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  const SizedBox(height: 20),
+                  const Text('Charger les bases de données'),
+                  ElevatedButton(
+                    onPressed: loadDatabases,
+                    child: const Text('Sélectionner les fichiers'),
+                  ),
+                  const SizedBox(height: 10),
+                  //italic info text
+                  const Text(
+                      'Copie local des bases de données et televersement sur GDrive pour la 1ère mise en route.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.blue)),
+                  const SizedBox(height: 20),
+                  const Text('Synchoniser les bases de données'),
+                  ElevatedButton(
+                    onPressed: synchronizeDatabases,
+                    child: const Text('Synchoniser'),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                      'Synchronisation entre les données locales et GDrive.',
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.blue)),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

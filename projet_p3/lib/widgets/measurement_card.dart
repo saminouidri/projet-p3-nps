@@ -64,12 +64,25 @@ class MeasurementsCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: measurements.map((measurement) {
-                // Convert UNIX timestamp to DateTime
-                DateTime date = DateTime.fromMillisecondsSinceEpoch(
-                    measurement['UUSERTIME'] * 1000);
+                // Assume UUSERTIME is in seconds; adjust if it's already in milliseconds
+                int timestamp = measurement['UUSERTIME'];
+                // Create a DateTime object only if the timestamp is within a reasonable range
+                DateTime? date;
+                if (timestamp > 0 &&
+                    timestamp <
+                        DateTime.now()
+                                .add(Duration(days: 365 * 20))
+                                .millisecondsSinceEpoch /
+                            1000) {
+                  date = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+                }
+
                 double value = measurement['RVALUE'];
-                return Text(
-                    'Measurement: $value, Date: ${DateFormat.yMd().format(date)}');
+                // Use a default date string if the date is null
+                String dateString = date != null
+                    ? DateFormat.yMd().format(date)
+                    : "Invalid Date";
+                return Text('Measurement: $value, Date: $dateString');
               }).toList(),
             ),
           ),
