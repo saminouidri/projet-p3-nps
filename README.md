@@ -9,3 +9,4 @@ TODO :
 - Reparer problème "invalid date" sur measurements card
 - ajouter support multi-langues
 - faire plus de tests
+- ajouter mesure cases a cocher, liste qualitative (combobox)
