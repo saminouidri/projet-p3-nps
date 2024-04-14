@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:projet_p3/GDriveAPI/AuthenticatedClient.dart';
 import 'package:projet_p3/GDriveAPI/DriveFilePicker.dart';
 import 'package:projet_p3/UI/MainPage.dart';
+import 'package:projet_p3/i18n/app_localization.dart';
 import 'package:projet_p3/widgets/logs_card.dart';
 import 'package:projet_p3/widgets/logs_graph.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,12 +43,18 @@ Future<void> copyFileToDBMobiliusFolder(File file, BuildContext context) async {
 
     print("File copied to $newPath");
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('File copied to $newPath')),
+      SnackBar(
+          content: Text(
+              AppLocalizations.of(context).translate('fileCopiedSuccess') ??
+                  'File copied successfully.' + ' $newPath')),
     );
   } catch (e) {
     print("Error copying file to DB_mobilius folder: $e");
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error copying file: $e')),
+      SnackBar(
+          content: Text(
+              AppLocalizations.of(context).translate('errorCopyingFile') ??
+                  'An error has occured')),
     );
   }
 }

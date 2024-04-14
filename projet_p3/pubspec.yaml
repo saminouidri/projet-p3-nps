@@ -37,7 +37,6 @@ dependencies:
   firebase_auth: ^4.7.3
   fl_chart: ^0.63.0
   http: ^1.1.0
-  intl: ^0.18.1
   cloud_firestore: ^4.9.0
   firebase_database: ^10.2.5
   qr_code_scanner: ^1.0.1
@@ -52,11 +51,14 @@ dependencies:
   shared_preferences: ^2.2.2
   external_path: ^1.0.3
   sqflite: ^2.3.2
+  intl: ^0.18.1
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+  intl_translation: ^0.18.2
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -75,7 +77,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
+  assets:
+    - locale/
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 

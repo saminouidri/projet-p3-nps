@@ -5,6 +5,7 @@ import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:projet_p3/UI/scanUtils.dart';
+import 'package:projet_p3/i18n/app_localization.dart';
 import 'package:projet_p3/main.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:sqflite/sqflite.dart';
@@ -114,8 +115,10 @@ class _ScanPageState extends State<ScanPage> {
                       //entrée de la valeur
                       child: TextField(
                         controller: _valueController,
-                        decoration: const InputDecoration(
-                          labelText: 'Valeur...',
+                        decoration: InputDecoration(
+                          labelText:
+                              AppLocalizations.of(context).translate('value') ??
+                                  'value...',
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -123,7 +126,9 @@ class _ScanPageState extends State<ScanPage> {
                     const SizedBox(width: 10),
                     ElevatedButton(
                       onPressed: _submitData,
-                      child: const Text('Valider'),
+                      child: Text(
+                          AppLocalizations.of(context).translate('validate') ??
+                              'Validate'),
                     ),
                   ],
                 ),
@@ -146,8 +151,10 @@ class _ScanPageState extends State<ScanPage> {
       // Verify the data before submission
       if (!(await verifyData(iSiteID, iVarID))) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Erreur : Site et/ou variable inconnu(e)')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)
+                      .translate('unknownSiteOrVariable') ??
+                  'An error has occured')),
         );
         return;
       }
@@ -174,7 +181,10 @@ class _ScanPageState extends State<ScanPage> {
       // Check if the measurement is within constraints
       if (rValue < rMin || rValue > rMax) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mesure hors limites')),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context).translate('errorUpdatingFile') ??
+                      'An error has occured')),
         );
         setState(() {
           qrText = '';
@@ -211,7 +221,10 @@ class _ScanPageState extends State<ScanPage> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Donnée soumise avec succès')),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)
+                    .translate('dataSubmittedSuccess') ??
+                'Data submitted successfully')),
       );
       await db.close();
       setState(() {
@@ -220,7 +233,10 @@ class _ScanPageState extends State<ScanPage> {
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur lors de l\'envoi de donnée: $e')),
+        SnackBar(
+            content: Text(
+                AppLocalizations.of(context).translate('errorSubmittingData') ??
+                    'Error submitting Data' + ' $e')),
       );
     }
   }
@@ -230,10 +246,12 @@ class _ScanPageState extends State<ScanPage> {
     List<String> dataParts = qrText.split(';');
     if ((dataParts.length > 3 || dataParts.length < 2) ||
         !dataParts[0].contains('Clarius')) {
-      return const Card(
+      return Card(
         child: Padding(
           padding: EdgeInsets.all(16.0),
-          child: Text('Format de code QR invalide.'),
+          child: Text(
+              AppLocalizations.of(context).translate('invalidQRFormat') ??
+                  'Invalid QR Format'),
         ),
       );
     }
@@ -269,11 +287,15 @@ class _ScanPageState extends State<ScanPage> {
           ),
           ElevatedButton(
             onPressed: _presentDatePicker,
-            child: const Text('Choisir une date de mesure'),
+            child: Text(AppLocalizations.of(context)
+                    .translate('chooseMeasurementDate') ??
+                'Select a measurement date'),
           ),
           // Display the selected date
           Text(
-            'Date selectionnée: ${DateFormat('MM/dd/yyyy').format(_selectedDate)}',
+            AppLocalizations.of(context).translate('selectedDate') ??
+                'Selected Date :' +
+                    ' ${DateFormat('MM/dd/yyyy').format(_selectedDate)}',
           ),
         ],
       ),
@@ -284,7 +306,9 @@ class _ScanPageState extends State<ScanPage> {
     this.controller = controller;
     controller.scannedDataStream.listen((scanData) {
       setState(() {
-        qrText = scanData.code ?? 'Pas de données trouvées.';
+        qrText = scanData.code ??
+            AppLocalizations.of(context).translate('noDataFound') ??
+            'No data found';
         Vibration.vibrate(); //feedback haptique
       });
     });

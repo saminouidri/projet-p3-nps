@@ -3,7 +3,9 @@ import 'dart:io';
 import 'dart:math';
 import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
+import 'package:googleapis/servicemanagement/v1.dart';
 import 'package:intl/intl.dart';
+import 'package:projet_p3/i18n/app_localization.dart';
 import 'package:projet_p3/main.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:sqflite/sqflite.dart';
@@ -45,7 +47,7 @@ Future<Map<String, dynamic>?> fetchVariableConstraints(int iVarID) async {
         return results.first;
       }
     } else {
-      throw Exception('Variable pas trouvé.');
+      throw Exception('Variable not found');
     }
   } catch (e) {
     print('Erreur lors de la recuperation de limites: $e');

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:googleapis_auth/auth_io.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:projet_p3/i18n/app_localization.dart';
 
 class DriveFilePicker extends StatefulWidget {
   final drive.DriveApi driveApi;
@@ -56,10 +57,14 @@ class _DriveFilePickerState extends State<DriveFilePicker> {
           _showDownloadSuccessDialog(filePath);
         });
       }, onError: (error) {
-        _showErrorDialog("Error downloading file: $error");
+        _showErrorDialog(
+            AppLocalizations.of(context).translate('downloadErrorMessage') ??
+                'An error has occured' + "$error");
       });
     } catch (e) {
-      _showErrorDialog("Error downloading file: $e");
+      _showErrorDialog(
+          AppLocalizations.of(context).translate('downloadErrorMessage') ??
+              'An error has occured' + "$e");
     }
   }
 
@@ -68,8 +73,12 @@ class _DriveFilePickerState extends State<DriveFilePicker> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Download Success'),
-          content: Text('File downloaded successfully to $filePath.'),
+          title: Text(
+              AppLocalizations.of(context).translate('downloadSuccessTitle') ??
+                  'Sucess'),
+          content: Text(AppLocalizations.of(context)
+                  .translate('downloadSuccessMessage') ??
+              'Successfully downloaded to ' + '$filePath.'),
           actions: <Widget>[
             TextButton(
               child: const Text('OK'),
@@ -86,8 +95,12 @@ class _DriveFilePickerState extends State<DriveFilePicker> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Success'),
-          content: const Text('File uploaded successfully to Google Drive.'),
+          title: Text(
+              AppLocalizations.of(context).translate('uploadSuccessTitle') ??
+                  'Success'),
+          content: Text(
+              AppLocalizations.of(context).translate('uploadSuccessMessage') ??
+                  'File uploaded successfully to Google Drive.'),
           actions: <Widget>[
             TextButton(
               child: const Text('OK'),
@@ -121,12 +134,15 @@ class _DriveFilePickerState extends State<DriveFilePicker> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Upload File to Google Drive'),
+        title: Text(AppLocalizations.of(context).translate('uploadToGDrive') ??
+            'Upload to Google Drive'),
       ),
       body: Center(
         child: ElevatedButton(
           onPressed: _pickAndUploadFile,
-          child: const Text('Pick and Upload File'),
+          child: Text(
+              AppLocalizations.of(context).translate('pickAndUploadFile') ??
+                  'Pick and Upload File'),
         ),
       ),
     );

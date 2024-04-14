@@ -2,11 +2,13 @@ import 'dart:io';
 import 'dart:math';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:projet_p3/GDriveAPI/AuthenticatedClient.dart';
 import 'package:projet_p3/GDriveAPI/DriveFilePicker.dart';
 import 'package:projet_p3/GDriveAPI/GDriveUtils.dart';
 import 'package:projet_p3/UI/MainPage.dart';
+import 'package:projet_p3/i18n/app_localization.dart';
 import 'package:projet_p3/widgets/logs_card.dart';
 import 'package:projet_p3/widgets/logs_graph.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,7 +25,7 @@ import 'package:external_path/external_path.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(MaterialApp(home: MainPage(), theme: darkTheme));
+  runApp(MaterialApp(home: const MainPage(), theme: darkTheme));
 }
 
 final ThemeData darkTheme = ThemeData(
@@ -42,6 +44,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Clarius Mobilius',
+      localizationsDelegates: const [
+        AppLocalizationsDelegate(),
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('fr', ''),
+        Locale('de', ''),
+        Locale('it', ''),
+      ],
       home: const MainPage(),
       routes: {
         '/home': (context) => const MyHomePage(title: 'Clarius Mobilius'),
@@ -74,10 +87,11 @@ class _MyHomePageState extends State<MyHomePage> {
           driveApi = api;
         });
       } else {
-        // Handle failed sign-in or prompt user for action
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Errreur de connexion. Veuillez vous connecter.')),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)
+                      .translate('noMeasurementFound') ??
+                  'An error has occured')),
         );
       }
     });
@@ -146,17 +160,19 @@ class _MyHomePageState extends State<MyHomePage> {
             await driveApi?.files
                 .update(fileMetadata, fileId, uploadMedia: media);
 
-            print("File has been successfully updated.");
             // ignore: use_build_context_synchronously
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('File has been successfully updated.')),
+              SnackBar(
+                  content: Text(AppLocalizations.of(context)
+                          .translate('fileUpdatedSuccess') ??
+                      'An error has occured')),
             );
           } catch (e) {
-            // Handle errors, e.g., print them or display a message
-            print("Error updating file: $e");
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Error updating file.')),
+              SnackBar(
+                  content: Text(AppLocalizations.of(context)
+                          .translate('measurementOutOfBounds') ??
+                      'measurement out of bounds')),
             );
           }
         }
@@ -180,38 +196,57 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Bienvenue',
+                  Text(
+                      AppLocalizations.of(context).translate('welcome') ??
+                          'welcome',
                       style: TextStyle(fontSize: 18, color: Colors.grey)),
                   Text((_email.isEmpty ? 'Guest' : _email),
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 40),
-                  const Text('Paramètres',
+                  Text(
+                      AppLocalizations.of(context).translate('settings') ??
+                          'Settings',
                       style: TextStyle(fontSize: 18, color: Colors.grey)),
                   const SizedBox(height: 20),
-                  const Text('Charger les bases de données'),
+                  Text(
+                      AppLocalizations.of(context).translate('loadDatabases') ??
+                          'Load Databases'),
                   ElevatedButton(
                     onPressed: loadDatabases,
-                    child: const Text('Sélectionner les fichiers'),
+                    child: Text(
+                        AppLocalizations.of(context).translate('selectFiles') ??
+                            'Select Files'),
                   ),
                   const SizedBox(height: 10),
                   //italic info text
-                  const Text(
-                      'Copie local des bases de données et televersement sur GDrive pour la 1ère mise en route.',
-                      style: TextStyle(
+                  Text(
+                      AppLocalizations.of(context)
+                              .translate('localDatabaseCopy') ??
+                          'Local copy of databases and upload to GDrive for initial setup.',
+                      style: const TextStyle(
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                           color: Colors.blue)),
                   const SizedBox(height: 20),
-                  const Text('Synchoniser les bases de données'),
+                  Text(
+                    AppLocalizations.of(context)
+                            .translate('synchronizeDatabases') ??
+                        'Synchronize Databases',
+                  ),
                   ElevatedButton(
                     onPressed: synchronizeDatabases,
-                    child: const Text('Synchoniser'),
+                    child: Text(
+                      AppLocalizations.of(context).translate('synchronize') ??
+                          'Synchronize',
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                      'Synchronisation entre les données locales et GDrive.',
-                      style: TextStyle(
+                  Text(
+                      AppLocalizations.of(context)
+                              .translate('syncExplanation') ??
+                          'Synchronization between local data and GDrive.',
+                      style: const TextStyle(
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                           color: Colors.blue)),

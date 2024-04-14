@@ -1,5 +1,6 @@
 import 'package:external_path/external_path.dart';
 import 'package:flutter/material.dart';
+import 'package:projet_p3/i18n/app_localization.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart';
@@ -48,7 +49,9 @@ class MeasurementsCard extends StatelessWidget {
         }
 
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Text("No measurements found");
+          return Text(
+              AppLocalizations.of(context).translate('variableNotFound') ??
+                  'Variable not found');
         }
 
         List<Map<String, dynamic>> measurements = snapshot.data!;

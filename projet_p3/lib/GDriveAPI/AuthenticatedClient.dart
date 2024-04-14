@@ -25,7 +25,7 @@ Future<drive.DriveApi?> signInWithGoogle() async {
       return drive.DriveApi(authenticateClient as http.Client);
     }
   } catch (error) {
-    print("Error signing in with Google: $error");
+    print("Error signing in with Google:" + "$error");
   }
   return null;
 }
